@@ -39,17 +39,18 @@ Certifique-se de que os seguintes arquivos existem na raiz do projeto:
    - **Name:** `revista-backend` (ou o nome que preferir)
    - **Region:** Escolha a região mais próxima (ex: `São Paulo`)
    - **Branch:** `main`
-   - **Root Directory:** Deixe vazio (raiz do projeto)
-   - **Runtime:** `Python 3`
+   - **Root Directory:** ⚠️ **DEIXE VAZIO** (ou `.`) - não coloque `backend` ou `frontend`
+   - **Runtime:** ⚠️ **Python 3** (não Node.js!)
    - **Build Command:** 
      ```bash
      pip install -r backend/requirements.txt
      ```
-   - **Start Command:**
-     ```bash
-     python backend/main.py
-     ```
-     *Ou use o Procfile automaticamente se configurado*
+   - **Start Command:** ⚠️ **DEIXE VAZIO** - o Render usará o `Procfile` automaticamente
+   
+   **⚠️ IMPORTANTE:** 
+   - O backend é **Python** (não Node.js), então não precisa de `package.json` na raiz
+   - O `Procfile` já está configurado e será usado automaticamente
+   - Se você colocar um Start Command, ele vai ignorar o Procfile
 
 3. **Variáveis de Ambiente (Environment Variables):**
    - Clique em "Advanced" → "Add Environment Variable"
