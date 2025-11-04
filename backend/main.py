@@ -228,7 +228,36 @@ init_db()
 # Rotas da API
 @app.route("/", methods=["GET"])
 def root():
-    """Endpoint raiz - verifica se a API está funcionando"""
+    """
+    Endpoint raiz - Status da API
+    ---
+    tags:
+      - default
+    summary: Verifica status da API
+    description: Retorna informações sobre o status da API e lista todos os endpoints disponíveis
+    produces:
+      - application/json
+    responses:
+      200:
+        description: API funcionando corretamente
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+            message:
+              type: string
+            server_info:
+              type: object
+            endpoints:
+              type: object
+            database:
+              type: string
+            cors:
+              type: string
+            timestamp:
+              type: string
+    """
     import socket
     
     # Obter informações do servidor
@@ -317,7 +346,42 @@ def get_artigos():
 
 @app.route("/artigos/<int:artigo_id>", methods=["GET"])
 def get_artigo(artigo_id):
-    """Busca um artigo específico por ID"""
+    """
+    Busca uma notícia específica por ID
+    ---
+    tags:
+      - Artigos
+    summary: Busca uma notícia por ID
+    description: Retorna os detalhes de uma notícia específica
+    produces:
+      - application/json
+    parameters:
+      - in: path
+        name: artigo_id
+        type: integer
+        required: true
+        description: ID do artigo
+    responses:
+      200:
+        description: Artigo encontrado
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            titulo:
+              type: string
+            conteudo:
+              type: string
+            autor:
+              type: string
+            imagem_url:
+              type: string
+            data_criacao:
+              type: string
+      404:
+        description: Artigo não encontrado
+    """
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
     
@@ -435,7 +499,51 @@ def create_artigo():
 
 @app.route("/artigos/<int:artigo_id>", methods=["PUT"])
 def update_artigo(artigo_id):
-    """Atualiza um artigo existente"""
+    """
+    Atualiza uma notícia existente
+    ---
+    tags:
+      - Artigos
+    summary: Atualiza uma notícia
+    description: Atualiza os dados de uma notícia existente
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: path
+        name: artigo_id
+        type: integer
+        required: true
+        description: ID do artigo a ser atualizado
+      - in: body
+        name: body
+        description: Dados atualizados do artigo
+        required: true
+        schema:
+          type: object
+          required:
+            - titulo
+            - conteudo
+            - autor
+          properties:
+            titulo:
+              type: string
+              description: Novo título da notícia
+            conteudo:
+              type: string
+              description: Novo conteúdo da notícia
+            autor:
+              type: string
+              description: Novo autor da notícia
+    responses:
+      200:
+        description: Artigo atualizado com sucesso
+      400:
+        description: Dados incompletos
+      404:
+        description: Artigo não encontrado
+    """
     data = request.get_json()
     
     if not data or not all(key in data for key in ['titulo', 'conteudo', 'autor']):
@@ -475,7 +583,32 @@ def update_artigo(artigo_id):
 
 @app.route("/artigos/<int:artigo_id>", methods=["DELETE"])
 def delete_artigo(artigo_id):
-    """Deleta um artigo"""
+    """
+    Deleta uma notícia
+    ---
+    tags:
+      - Artigos
+    summary: Deleta uma notícia
+    description: Remove uma notícia do sistema
+    produces:
+      - application/json
+    parameters:
+      - in: path
+        name: artigo_id
+        type: integer
+        required: true
+        description: ID do artigo a ser deletado
+    responses:
+      200:
+        description: Artigo deletado com sucesso
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+      404:
+        description: Artigo não encontrado
+    """
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
     
@@ -802,7 +935,62 @@ def delete_resultado(resultado_id):
 # Endpoints de autenticação
 @app.route("/auth/login", methods=["POST"])
 def login():
-    """Autentica um usuário"""
+    """
+    Autentica um usuário
+    ---
+    tags:
+      - Autenticação
+    summary: Fazer login
+    description: Autentica o usuário e retorna os dados do usuário
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Credenciais do usuário
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              description: Email do usuário
+              example: "admin@mozafut.com"
+            password:
+              type: string
+              description: Senha do usuário
+              example: "123456"
+    responses:
+      200:
+        description: Login realizado com sucesso
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                email:
+                  type: string
+                name:
+                  type: string
+                phone:
+                  type: string
+                userType:
+                  type: string
+      401:
+        description: Credenciais inválidas
+      400:
+        description: Email e senha são obrigatórios
+    """
     data = request.get_json()
     email = data.get('email')
     senha = data.get('password')
@@ -838,7 +1026,58 @@ def login():
 
 @app.route("/auth/register", methods=["POST"])
 def register():
-    """Registra um novo usuário"""
+    """
+    Registra um novo usuário
+    ---
+    tags:
+      - Autenticação
+    summary: Registrar novo usuário
+    description: Cria uma nova conta de usuário no sistema
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Dados do novo usuário
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+            - name
+          properties:
+            email:
+              type: string
+              description: Email do usuário
+              example: "usuario@exemplo.com"
+            password:
+              type: string
+              description: Senha do usuário
+              example: "senha123"
+            name:
+              type: string
+              description: Nome completo do usuário
+              example: "João Silva"
+            phone:
+              type: string
+              description: Telefone do usuário (opcional)
+              example: "+258 84 123 4567"
+    responses:
+      200:
+        description: Usuário cadastrado com sucesso
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            message:
+              type: string
+      400:
+        description: Email já cadastrado ou dados incompletos
+    """
     data = request.get_json()
     email = data.get('email')
     senha = data.get('password')
