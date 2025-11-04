@@ -1,13 +1,81 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flasgger import Swagger
 import sqlite3
 import os
+import sys
 from datetime import datetime
 import uuid
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-CORS(app)  # Permite CORS para comunicação com o frontend
+
+# Configurar Swagger UI
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": "apispec",
+            "route": "/apispec.json",
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Revista API",
+        "description": "API para revista digital de futebol moçambicano. Use esta interface para testar todos os endpoints da API.",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Suporte API",
+        }
+    },
+    "host": None,  # Será preenchido automaticamente
+    "basePath": "/",
+    "schemes": ["http", "https"],
+    "tags": [
+        {
+            "name": "Artigos",
+            "description": "Endpoints para gerenciar notícias/artigos"
+        },
+        {
+            "name": "Usuários",
+            "description": "Endpoints para gerenciar usuários"
+        },
+        {
+            "name": "Equipes",
+            "description": "Endpoints para gerenciar equipes"
+        },
+        {
+            "name": "Resultados",
+            "description": "Endpoints para gerenciar resultados"
+        },
+        {
+            "name": "Autenticação",
+            "description": "Endpoints de autenticação"
+        },
+        {
+            "name": "Upload",
+            "description": "Endpoints para upload de arquivos"
+        }
+    ]
+}
+
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
+# Configurar CORS para permitir todas as origens (desenvolvimento e produção)
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # Configuração de ambiente
 PORT = int(os.environ.get('PORT', 8000))
@@ -160,11 +228,72 @@ init_db()
 # Rotas da API
 @app.route("/", methods=["GET"])
 def root():
-    return jsonify({"message": "API da Revista funcionando!"})
+    """Endpoint raiz - verifica se a API está funcionando"""
+    import socket
+    
+    # Obter informações do servidor
+    hostname = socket.gethostname()
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except:
+        local_ip = "N/A"
+    
+    return jsonify({
+        "status": "✅ API CONECTADA E FUNCIONANDO!",
+        "message": "API da Revista está online e respondendo corretamente.",
+        "server_info": {
+            "hostname": hostname,
+            "port": PORT,
+            "environment": os.environ.get('FLASK_ENV', 'development'),
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        },
+        "endpoints": {
+            "root": "/",
+            "docs": "/docs",
+            "artigos": "/artigos",
+            "equipes": "/equipes",
+            "resultados": "/resultados",
+            "usuarios": "/usuarios",
+            "login": "/auth/login",
+            "register": "/auth/register"
+        },
+        "database": "SQLite (revista.db)",
+        "cors": "Habilitado para todas as origens",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
 
 @app.route("/artigos", methods=["GET"])
 def get_artigos():
-    """Busca todos os artigos"""
+    """
+    Lista todas as notícias/artigos
+    ---
+    tags:
+      - Artigos
+    summary: Lista todas as notícias
+    description: Retorna uma lista de todos os artigos/notícias cadastrados
+    produces:
+      - application/json
+    responses:
+      200:
+        description: Lista de artigos
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              titulo:
+                type: string
+              conteudo:
+                type: string
+              autor:
+                type: string
+              imagem_url:
+                type: string
+              data_criacao:
+                type: string
+    """
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
     
@@ -211,7 +340,66 @@ def get_artigo(artigo_id):
 
 @app.route("/artigos", methods=["POST"])
 def create_artigo():
-    """Cria um novo artigo"""
+    """
+    Cria um novo artigo/notícia
+    ---
+    tags:
+      - Artigos
+    summary: Adiciona uma nova notícia
+    description: Cria um novo artigo (notícia) no sistema
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        description: Dados do artigo
+        required: true
+        schema:
+          type: object
+          required:
+            - titulo
+            - conteudo
+            - autor
+          properties:
+            titulo:
+              type: string
+              description: Título da notícia
+              example: "UD Songo vence mais uma partida"
+            conteudo:
+              type: string
+              description: Conteúdo completo da notícia
+              example: "A equipe UD Songo venceu mais uma partida importante..."
+            autor:
+              type: string
+              description: Nome do autor da notícia
+              example: "João Silva"
+            imagem_url:
+              type: string
+              description: URL da imagem (opcional)
+              example: "https://exemplo.com/imagem.jpg"
+    responses:
+      201:
+        description: Artigo criado com sucesso
+        schema:
+          type: object
+          properties:
+            id:
+              type: integer
+            titulo:
+              type: string
+            conteudo:
+              type: string
+            autor:
+              type: string
+            imagem_url:
+              type: string
+            data_criacao:
+              type: string
+      400:
+        description: Dados incompletos
+    """
     data = request.get_json()
     
     if not data or not all(key in data for key in ['titulo', 'conteudo', 'autor']):
@@ -305,7 +493,35 @@ def delete_artigo(artigo_id):
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    """Upload de imagem"""
+    """
+    Faz upload de uma imagem
+    ---
+    tags:
+      - Upload
+    summary: Upload de imagem
+    description: Faz upload de uma imagem e retorna a URL
+    consumes:
+      - multipart/form-data
+    produces:
+      - application/json
+    parameters:
+      - in: formData
+        name: file
+        type: file
+        required: true
+        description: Arquivo de imagem (png, jpg, jpeg, gif, webp)
+    responses:
+      200:
+        description: Upload realizado com sucesso
+        schema:
+          type: object
+          properties:
+            image_url:
+              type: string
+              example: "http://localhost:8000/uploads/abc123_image.jpg"
+      400:
+        description: Erro no upload
+    """
     if 'file' not in request.files:
         return jsonify({"error": "Nenhum arquivo enviado"}), 400
     
@@ -677,6 +893,91 @@ def update_profile():
     conn.close()
     
     return jsonify({"success": True, "message": "Perfil atualizado com sucesso"})
+
+# Endpoints de usuários
+@app.route("/usuarios", methods=["GET"])
+def get_usuarios():
+    """
+    Lista todos os usuários
+    ---
+    tags:
+      - Usuários
+    summary: Lista todos os usuários
+    description: Retorna uma lista de todos os usuários cadastrados (sem senha por segurança)
+    produces:
+      - application/json
+    responses:
+      200:
+        description: Lista de usuários
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              email:
+                type: string
+              nome:
+                type: string
+              telefone:
+                type: string
+              tipo_usuario:
+                type: string
+              data_criacao:
+                type: string
+    """
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, email, nome, telefone, tipo_usuario, data_criacao 
+        FROM usuarios 
+        ORDER BY data_criacao DESC
+    """)
+    usuarios = cursor.fetchall()
+    
+    conn.close()
+    
+    usuarios_list = []
+    for usuario in usuarios:
+        usuarios_list.append({
+            "id": usuario[0],
+            "email": usuario[1],
+            "nome": usuario[2],
+            "telefone": usuario[3],
+            "tipo_usuario": usuario[4],
+            "data_criacao": usuario[5]
+        })
+    
+    return jsonify(usuarios_list)
+
+@app.route("/usuarios/<int:usuario_id>", methods=["GET"])
+def get_usuario(usuario_id):
+    """Busca um usuário específico por ID (sem senha por segurança)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT id, email, nome, telefone, tipo_usuario, data_criacao 
+        FROM usuarios 
+        WHERE id = ?
+    """, (usuario_id,))
+    usuario = cursor.fetchone()
+    
+    conn.close()
+    
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+    
+    return jsonify({
+        "id": usuario[0],
+        "email": usuario[1],
+        "nome": usuario[2],
+        "telefone": usuario[3],
+        "tipo_usuario": usuario[4],
+        "data_criacao": usuario[5]
+    })
 
 if __name__ == "__main__":
     # Em produção, debug deve ser False
